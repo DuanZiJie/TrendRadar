@@ -1,0 +1,47 @@
+name: Daily Trend Monitor
+
+# 触发机制：每天北京时间 9:00 (UTC 1:00) 运行，或手动触发
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write # 允许写入权限，以便更新日志或推送到 Pages
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run TrendRadar
+      env:
+        # 通过环境变量注入配置，无需修改 config.yaml
+        # 这里假设项目支持通过环境变量覆盖配置（现有大多数 Python 项目均支持）
+        # 如果项目不支持，可能需要增加一步 sed 命令修改 config.yaml
+        FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        # 其他可能需要的配置...
+      run: |
+        python main.py
+
+    # 如果项目生成了 HTML 报告（通常在 report 或 index.html），可以部署到 Pages
+    # 如果项目仅做推送通知，此步骤可选
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: success()
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./ # 或生成的静态文件目录，如 ./docs
+        keep_files: true
